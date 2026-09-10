@@ -71,6 +71,65 @@ def identificar_e_filtrar_chave(chave_bruta):
     return "EVP", chave
 
 
+def enriquecer_dados_cnpj(cnpj):
+    """
+    Busca dados cadastrais completos do CNPJ na BrasilAPI (sem necessidade de token).
+    """
+    url = f"https://brasilapi.com.br/api/cnpj/v1/{cnpj}"
+    
+    print(f"\n{CIANO}=== ENRIQUECIMENTO CNPJ (BRASILAPI) ==={RESET}")
+    
+    try:
+        resposta = cliente.get(url)
+        
+        if resposta.status_code == 200:
+            dados = resposta.json()
+            print(f"{BOLD}Razão Social:{RESET} {dados.get('razao_social', 'Não informado')}")
+            print(f"{BOLD}Nome Fantasia:{RESET} {dados.get('nome_fantasia', 'Não informado') or 'Não informado'}")
+            print(f"{BOLD}Situação Cadastral:{RESET} {dados.get('descricao_situacao_cadastral', dados.get('situacao', 'Não informado'))}")
+            print(f"{BOLD}Data de Abertura:{RESET} {dados.get('data_inicio_atividade', 'Não informado')}")
+            print(f"{BOLD}Porte:{RESET} {dados.get('porte', 'Não informado')}")
+            natureza = dados.get('natureza_juridica')
+            if isinstance(natureza, dict):
+                print(f"{BOLD}Natureza Jurídica:{RESET} {natureza.get('descricao', natureza.get('codigo', 'Não informado'))}")
+            else:
+                print(f"{BOLD}Natureza Jurídica:{RESET} {natureza or 'Não informado'}")
+            cnae = dados.get('cnae_fiscal_descricao') or ""
+            print(f"{BOLD}CNAE Principal:{RESET} {dados.get('cnae_fiscal', 'N/A')} {cnae}".rstrip())
+            
+            endereco = f"{dados.get('logradouro', '')} {dados.get('numero', '')} {dados.get('complemento', '')}".strip()
+            print(f"{BOLD}Endereço:{RESET} {endereco or 'Não informado'} - {dados.get('bairro', 'Não informado')}")
+            print(f"{BOLD}Município/UF:{RESET} {dados.get('municipio', 'Não informado')}/{dados.get('uf', 'Não informado')} (CEP: {dados.get('cep', 'N/A')})")
+            
+            capital = dados.get('capital_social')
+            if capital is not None:
+                print(f"{BOLD}Capital Social:{RESET} R$ {capital:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+            else:
+                print(f"{BOLD}Capital Social:{RESET} Não informado")
+            
+            socios = dados.get('qsa') or []
+            if socios:
+                print(f"{BOLD}Sócios ({len(socios)}):{RESET}")
+                for socio in socios:
+                    nome = socio.get('nome_socio', 'Não informado')
+                    qual = socio.get('qualificacao_socio', {}).get('descricao', '')
+                    print(f"  - {nome} {qual}".rstrip())
+            else:
+                print(f"{BOLD}Sócios:{RESET} Não informado")
+            return dados
+            
+        elif resposta.status_code == 404:
+            print(f"{VERMELHO}CNPJ não encontrado na base da BrasilAPI.{RESET}")
+            return None
+        else:
+            print(f"{AMARELO}Aviso: BrasilAPI respondeu com status {resposta.status_code}: {resposta.text}{RESET}")
+            return None
+            
+    except httpx.RequestError as e:
+        print(f"{VERMELHO}Erro na requisição BrasilAPI: {e}{RESET}")
+        return None
+
+
 def consultar_chave_pix(chave_para_analise):
     tipo, chave_normalizada = identificar_e_filtrar_chave(chave_para_analise)
     
@@ -108,6 +167,12 @@ def consultar_chave_pix(chave_para_analise):
             inst = dados.get('financialInstitution', {})
             banco_detalhes = inst.get('bank', {})
             print(f"{BOLD}Nome do Banco:{RESET} {banco_detalhes.get('name', 'Não informado')} (Código: {banco_detalhes.get('code', inst.get('code', 'N/A'))})")
+            
+            documento = re.sub(r"\D", "", owner.get('cpfCnpj', ''))
+            if documento and len(documento) == 14:
+                enriquecer_dados_cnpj(documento)
+            elif documento and len(documento) == 11:
+                print(f"\n{AMARELO}CPF identificado. Não há API pública para enriquecer dados de CPF (LGPD).{RESET}")
             return dados
             
         elif resposta.status_code == 400:
