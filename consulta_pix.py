@@ -105,7 +105,9 @@ def consultar_chave_pix(chave_para_analise):
             print(f"{BOLD}Documento (CPF/CNPJ):{RESET} {owner.get('cpfCnpj', dados.get('cpfCnpj', 'Não informado'))}")
             banco = dados.get('ispbName') or dados.get('financialInstitution', {}).get('bank', {}).get('name', 'Não informado')
             print(f"{BOLD}Banco:{RESET} {banco} (ISPB: {dados.get('ispb', 'N/A')})")
-            print(f"{BOLD}Tipo de Conta:{RESET} {dados.get('accountType', 'Não informado')}")
+            inst = dados.get('financialInstitution', {})
+            banco_detalhes = inst.get('bank', {})
+            print(f"{BOLD}Nome do Banco:{RESET} {banco_detalhes.get('name', 'Não informado')} (Código: {banco_detalhes.get('code', inst.get('code', 'N/A'))})")
             return dados
             
         elif resposta.status_code == 400:
