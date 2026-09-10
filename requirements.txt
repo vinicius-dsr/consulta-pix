@@ -1,3 +1,4 @@
-requests
+httpx
+h2
 python-dotenv
 

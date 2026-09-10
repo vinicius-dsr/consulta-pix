@@ -1,6 +1,7 @@
 import os
 import re
-import requests
+import time
+import httpx
 from urllib.parse import quote
 from dotenv import load_dotenv
 
@@ -28,9 +29,10 @@ if not API_URL or not API_KEY:
 
 headers = {
     "access_token": API_KEY,
-    "accept": "application/json",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    "accept": "application/json"
 }
+
+cliente = httpx.Client(http2=True, timeout=15, follow_redirects=True)
 
 def identificar_e_filtrar_chave(chave_bruta):
     """
@@ -84,7 +86,15 @@ def consultar_chave_pix(chave_para_analise):
     print(f"\n{AZUL}[Filtro Detectado: {tipo}]{RESET} Consultando: {chave_normalizada}...")
     
     try:
-        resposta = requests.get(url_completa, headers=headers, timeout=15)
+        resposta = None
+        for tentativa in range(1, 4):
+            try:
+                resposta = cliente.get(url_completa, headers=headers)
+                break
+            except httpx.TransportError:
+                if tentativa == 3:
+                    raise
+                time.sleep(1)
         
         if resposta.status_code == 200:
             dados = resposta.json()
@@ -109,7 +119,7 @@ def consultar_chave_pix(chave_para_analise):
             print(f"{AMARELO}Aviso: O servidor respondeu com status {resposta.status_code}: {resposta.text}{RESET}")
             return None
             
-    except requests.exceptions.RequestException as e:
+    except httpx.RequestError as e:
         print(f"{VERMELHO}Erro na requisição: {e}{RESET}")
         return None
 
