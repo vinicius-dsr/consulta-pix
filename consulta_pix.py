@@ -103,7 +103,8 @@ def consultar_chave_pix(chave_para_analise):
             print(f"{VERDE}Consulta realizada com sucesso!{RESET}")
             print(f"{BOLD}Nome do Titular:{RESET} {owner.get('name', dados.get('name', 'Não informado'))}")
             print(f"{BOLD}Documento (CPF/CNPJ):{RESET} {owner.get('cpfCnpj', dados.get('cpfCnpj', 'Não informado'))}")
-            print(f"{BOLD}Banco:{RESET} {dados.get('ispbDescription', 'Não informado')} (ISPB: {dados.get('ispb', 'N/A')})")
+            banco = dados.get('ispbName') or dados.get('financialInstitution', {}).get('bank', {}).get('name', 'Não informado')
+            print(f"{BOLD}Banco:{RESET} {banco} (ISPB: {dados.get('ispb', 'N/A')})")
             print(f"{BOLD}Tipo de Conta:{RESET} {dados.get('accountType', 'Não informado')}")
             return dados
             
